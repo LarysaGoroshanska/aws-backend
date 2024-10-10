@@ -2,6 +2,7 @@
 import 'source-map-support/register';
 import * as cdk from 'aws-cdk-lib';
 import { AwsBackendStack } from '../lib/aws-backend-stack';
+import { HelloLambdaStack } from '../lib/hello-lambda/hello-lambda-stack';
 
 const app = new cdk.App();
 new AwsBackendStack(app, 'AwsBackendStack', {
@@ -19,3 +20,4 @@ new AwsBackendStack(app, 'AwsBackendStack', {
 
   /* For more information, see https://docs.aws.amazon.com/cdk/latest/guide/environments.html */
 });
+new HelloLambdaStack(app, 'HelloLambdaStack', {});
