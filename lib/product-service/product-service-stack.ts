@@ -1,5 +1,7 @@
 import * as lambda from 'aws-cdk-lib/aws-lambda';
 import * as apigateway from 'aws-cdk-lib/aws-apigateway';
+import * as dynamodb from 'aws-cdk-lib/aws-dynamodb';
+import { NodejsFunction } from 'aws-cdk-lib/aws-lambda-nodejs';
 import * as cdk from 'aws-cdk-lib';
 import * as path from 'path';
 import { Construct } from 'constructs';
@@ -8,25 +10,51 @@ export class ProductServiceStack extends cdk.Stack {
   constructor(scope: Construct, id: string, props?: cdk.StackProps) {
     super(scope, id, props);
 
-    const lambdaFunction = new lambda.Function(this, 'lambda-function', {
+    const api = new apigateway.RestApi(this, 'products-api', {
+      restApiName: 'Products API Gateway',
+      description: 'This API serves the Products Lambda functions.'
+    });
+
+    const productsTable = new dynamodb.Table(this, 'Products', {
+      tableName: 'Products',
+      partitionKey: {
+        name: "id",
+        type: dynamodb.AttributeType.STRING,
+      },
+    });
+
+    const getProducstLambdaFunction = new NodejsFunction(this, 'get-products-lambda-function', {
       runtime: lambda.Runtime.NODEJS_20_X,
       memorySize: 1024,
       timeout: cdk.Duration.seconds(5),
-      handler: 'handler.main',
-      code: lambda.Code.fromAsset(path.join(__dirname, './')),
+      environment: {
+        TABLE_NAME: 'Products'
+      },
+      entry: path.join(__dirname, '../lambda/get-products-list-lambda.ts'),
     });
 
-     const api = new apigateway.RestApi(this, 'my-api', {
-      restApiName: 'My API Gateway',
-      description: 'This API serves the Lambda functions.'
+    const getProductByIdLambdaFunction = new NodejsFunction(this, 'get-product-by-id-lambda-function', {
+      runtime: lambda.Runtime.NODEJS_20_X,
+      memorySize: 1024,
+      timeout: cdk.Duration.seconds(5),
+      environment: {
+        TABLE_NAME: 'Products'
+      },
+      entry: path.join(__dirname, '../lambda/get-product-by-id-lambda.ts'),
     });
 
-     const productServiceIntegration = new apigateway.LambdaIntegration(lambdaFunction, {
-        requestTemplates: {
-            'application/json':
-              `{ "message": "$input.params('message')" }` // Map the query param message
-          },        
-        integrationResponses: [ // Add mapping for successful response
+    const createProductLambdaFunction = new NodejsFunction(this, 'create-product-lambda-function', {
+      runtime: lambda.Runtime.NODEJS_20_X,
+      memorySize: 1024,
+      timeout: cdk.Duration.seconds(5),
+      environment: {
+        TABLE_NAME: 'Products'
+      },
+      entry: path.join(__dirname, '../lambda/create-product-lambda.ts'),
+    });
+
+    const getProductsIntegration = new apigateway.LambdaIntegration(getProducstLambdaFunction, {
+        integrationResponses: [ 
           {
             statusCode: '200',
           }
@@ -34,23 +62,46 @@ export class ProductServiceStack extends cdk.Stack {
         proxy: false,
       });
 
-    // Create a resource products and GET request under it
-    const getProductsListResource = api.root.addResource('products');
-    // On this resource attach a GET method which pass request to our Lambda function
-    getProductsListResource.addMethod('GET', productServiceIntegration, {
+    const productByIdLambdaIntegration = new apigateway.LambdaIntegration(getProductByIdLambdaFunction, {
+      integrationResponses: [
+        {
+          statusCode: '200',
+        }
+      ],
+      proxy: false,
+    });
+
+    const createProductLambdaIntegration = new apigateway.LambdaIntegration(createProductLambdaFunction, {
+      integrationResponses: [
+        {
+          statusCode: '200',
+        }
+      ],
+      proxy: false,
+    });
+
+    const productsResource = api.root.addResource('products');
+    const productByIdResource = productsResource.addResource('{id}');
+
+    productsResource.addMethod('GET', getProductsIntegration, {
       methodResponses: [{ statusCode: '200' }]
     });
 
-    // Create a resource productId and GET request under it
-    const getProductByIdResource = getProductsListResource.addResource('{productId}');
-    // On this resource attach a GET method which pass reuest to our Lambda function
-    getProductByIdResource.addMethod('GET', productServiceIntegration, {
-      methodResponses: [{ statusCode: '200' }]
+    productsResource.addMethod('POST', createProductLambdaIntegration, {
+      methodResponses: [{ statusCode: '200' }],
     });
 
-    getProductsListResource.addCorsPreflight({
+    productByIdResource.addMethod('GET', productByIdLambdaIntegration, {
+      methodResponses: [{ statusCode: '200' }],
+    });
+
+    productsResource.addCorsPreflight({
       allowOrigins: ['https://your-frontend-url.com'],
       allowMethods: ['GET'],
     }); 
+
+    productsTable.grantReadData(getProductByIdLambdaFunction);
+    productsTable.grantReadData(getProductByIdLambdaFunction);
+    productsTable.grantWriteData(createProductLambdaFunction);
   }
 }
