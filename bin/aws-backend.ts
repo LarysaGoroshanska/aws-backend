@@ -4,6 +4,7 @@ import * as cdk from 'aws-cdk-lib';
 import { AwsBackendStack } from '../lib/aws-backend-stack';
 import { HelloLambdaStack } from '../lib/hello-lambda/hello-lambda-stack';
 import { ProductServiceStack } from '../lib/product-service/product-service-stack';
+import { HelloS3Stack } from '../lib/hello-s3/hello-s3-stack';
 
 const app = new cdk.App();
 new AwsBackendStack(app, 'AwsBackendStack', {
@@ -23,3 +24,4 @@ new AwsBackendStack(app, 'AwsBackendStack', {
 });
 new HelloLambdaStack(app, 'HelloLambdaStack', {});
 new ProductServiceStack(app, 'ProductServiceStack', {});
+new HelloS3Stack(app, 'HelloS3Stack', {});
