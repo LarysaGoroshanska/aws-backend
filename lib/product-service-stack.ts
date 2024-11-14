@@ -5,6 +5,10 @@ import { NodejsFunction } from 'aws-cdk-lib/aws-lambda-nodejs';
 import * as cdk from 'aws-cdk-lib';
 import * as path from 'path';
 import { Construct } from 'constructs';
+import { Queue } from 'aws-cdk-lib/aws-sqs';
+import { SqsEventSource } from 'aws-cdk-lib/aws-lambda-event-sources';
+import { Topic } from 'aws-cdk-lib/aws-sns';
+import { EmailSubscription } from 'aws-cdk-lib/aws-sns-subscriptions';
 
 export class ProductServiceStack extends cdk.Stack {
   constructor(scope: Construct, id: string, props?: cdk.StackProps) {
@@ -13,6 +17,23 @@ export class ProductServiceStack extends cdk.Stack {
     const api = new apigateway.RestApi(this, 'products-api', {
       restApiName: 'Products API Gateway',
       description: 'This API serves the Products Lambda functions.'
+    });
+
+    const snsTopic = new Topic(this, 'products-service-sns-topic', {
+      displayName: 'products-service-sns-topic',
+    });
+
+    const catalogItemsSQSQueue = new Queue(this, "catalog-items-sqs-queue");
+
+    const catalogBatchProcessLambdaFunction = new NodejsFunction(this, 'catalog-batch-process-lambda-function', {
+      runtime: lambda.Runtime.NODEJS_20_X,
+      memorySize: 1024,
+      timeout: cdk.Duration.seconds(5),
+      environment: {
+        TABLE_NAME: 'Products',
+        SNS_TOPIC_ARN: snsTopic.topicArn,
+      },
+      entry: path.join(__dirname, '../lambda/catalog-batch-process-lambda.ts'),
     });
 
     const productsTable = new dynamodb.Table(this, 'Products', {
@@ -100,8 +121,15 @@ export class ProductServiceStack extends cdk.Stack {
       allowMethods: ['GET'],
     }); 
 
+    catalogBatchProcessLambdaFunction.addEventSource(new SqsEventSource(catalogItemsSQSQueue, {
+      batchSize: 5,
+    }));
+
+    snsTopic.addSubscription(new EmailSubscription(''));
+    snsTopic.grantPublish(catalogBatchProcessLambdaFunction);
     productsTable.grantReadData(getProductByIdLambdaFunction);
     productsTable.grantReadData(getProductByIdLambdaFunction);
     productsTable.grantWriteData(createProductLambdaFunction);
+    productsTable.grantWriteData(catalogBatchProcessLambdaFunction);
   }
 }

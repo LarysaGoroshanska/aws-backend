@@ -7,6 +7,9 @@ import * as iam from 'aws-cdk-lib/aws-iam';
 import * as lambda from 'aws-cdk-lib/aws-lambda';
 import * as apigateway from 'aws-cdk-lib/aws-apigateway';
 import * as s3Notifications from 'aws-cdk-lib/aws-s3-notifications';
+import { SqsEventSource } from 'aws-cdk-lib/aws-lambda-event-sources';
+import { Queue } from 'aws-cdk-lib/aws-sqs';
+import { EmailSubscription } from 'aws-cdk-lib/aws-sns-subscriptions';
 
 export class ImportServiceStack extends cdk.Stack {
   constructor(scope: Construct, id: string, props?: cdk.StackProps) {
@@ -23,6 +26,8 @@ export class ImportServiceStack extends cdk.Stack {
       description: 'This API serves the import lambda functions.'
     });
 
+    const catalogItemsSQSQueue = new Queue(this, "catalog-items-sqs-queue");
+
     const importProductsFileLambdaFunction = new NodejsFunction(this, 'import-products-file-lambda-function', {
       runtime: lambda.Runtime.NODEJS_20_X,
       memorySize: 1024,
@@ -30,6 +35,7 @@ export class ImportServiceStack extends cdk.Stack {
       entry: path.join(__dirname, '../lambda/import-products-file-lambda.ts'),
       environment: {
         BUCKET_NAME: productBucket.bucketName,
+        SQS_QUEUE_URL: catalogItemsSQSQueue.queueUrl,
       },
     });
 
@@ -83,5 +89,7 @@ export class ImportServiceStack extends cdk.Stack {
       allowOrigins: ['https://dw4y2wj894dn8.cloudfront.net'],
       allowMethods: ['GET'],
     });
+
+    catalogItemsSQSQueue.grantSendMessages(importFileParserLambdaFunction);
   }
 }
