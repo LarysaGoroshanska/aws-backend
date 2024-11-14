@@ -7,6 +7,7 @@ import { ProductServiceStack } from '../lib/product-service/product-service-stac
 import { HelloS3Stack } from '../lib/hello-s3/hello-s3-stack';
 import { ProductSqsStack } from '../lib/product-sqs/product-sqs-stack';
 import { ProductSnsStack } from '../lib/product-sns/product-sns-stack';
+import { AuthorizerStack } from '../lib/authorizer/authorizer-stack';
 
 const app = new cdk.App();
 new AwsBackendStack(app, 'AwsBackendStack', {
@@ -29,3 +30,4 @@ new ProductServiceStack(app, 'ProductServiceStack', {});
 new HelloS3Stack(app, 'HelloS3Stack', {});
 new ProductSqsStack(app, 'ProductSqsStack');
 new ProductSnsStack(app, 'ProductSnsStack');
+new AuthorizerStack(app, 'AuthorizerStack');
