@@ -9,6 +9,8 @@ import { ProductSqsStack } from '../lib/product-sqs/product-sqs-stack';
 import { ProductSnsStack } from '../lib/product-sns/product-sns-stack';
 import { AuthorizerStack } from '../lib/authorizer/authorizer-stack';
 import { HelloRdsStack } from '../lib/hello-rds/hello-rds-stack';
+import { AuthStack } from '../lib/auth-stack';
+import * as path from 'path';
 
 const app = new cdk.App();
 new AwsBackendStack(app, 'AwsBackendStack', {
@@ -39,3 +41,8 @@ const envAPS  = {
 };
 
 new HelloRdsStack(app, 'HelloRdsStack', { env: envAPS });
+
+new AuthStack(app, 'AuthStack', {
+  lambdaPath: path.resolve(__dirname, '..', 'nest-app.zip'),
+  lambdaHandler: 'dist/lambda.handler',
+});
